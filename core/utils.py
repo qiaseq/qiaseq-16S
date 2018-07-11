@@ -45,20 +45,29 @@ def accumulate_metrics(metric_files,outfile):
     :param str  outfile      : The output file path
     '''
     metric_names = []
+    samples = []
     first = True
-    metric_accumulate = defaultdict(int)
+    metric_accumulate = defaultdict(lambda:defaultdict(int))
     
-    for sample in metric_files:
-        with open(metric_files[sample],"r") as IN:
+    for sample_name in metric_files:
+        with open(metric_files[sample_name],"r") as IN:
+            samples.append(sample_name)
             for line in IN:
                 metric,value = line.strip("\n").split("\t")
                 if first:
                     metric_names.append(metric)
-                metric_accumulate[metric]+=int(value)
-        first = False        
+                metric_accumulate[metric][sample_name]+=int(value)
+        first = False
+    header = "Metric\t{samples}\n".format(samples="\t".join(samples))
     with open(outfile,"w") as OUT:
+        OUT.write(header)
         for metric in metric_names:
-            OUT.write("{metric}\t{val}\n".format(metric=metric,val=metric_accumulate[metric]))
+            out = []
+            out.append(metric)
+            for sample_name in samples:
+                out.append(str(metric_accumulate[metric][sample_name]))
+            out.append("\n")
+            OUT.write("\t".join(out))
 
 def accumulate_counts(count_files,outfile):
     ''' Accumualate primer level counts
@@ -94,9 +103,9 @@ def accumulate_counts(count_files,outfile):
             amplicon = amplicons[i]
             primer_seq = primer_sequences[i]
             out = []
-            for sample in samples:
-                out.extend([amplicon,primer_name,primer_seq])                
-                out.append(primer_counts[primer_name][sample])
+            out.extend([amplicon,primer_name,primer_seq])
+            for sample_name in samples:                
+                out.append(primer_counts[primer_name][sample_name])
             out.append("\n")
             OUT.write("\t".join(out))
         
