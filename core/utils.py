@@ -35,8 +35,8 @@ def compress_fastqs(output_dir,samples_cfg):
     for sample_name,R1_fastq,R2_fastq in parse_config_file(samples_cfg):
         sample_dir = os.path.join(output_dir,sample_name)
         fastqs_to_gzip = glob.glob(os.path.join(sample_dir,"*.fastq"))        
-    for f in fastqs_to_gzip:
-        subprocess.check_call(pigz_cmd.format(fname=f),shell=True)
+        for f in fastqs_to_gzip:
+            subprocess.check_call(pigz_cmd.format(fname=f),shell=True)
 
 
 def accumulate_metrics(metric_files,outfile):
