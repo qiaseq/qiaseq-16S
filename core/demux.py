@@ -269,12 +269,13 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
                     R2_seq = R2_seq[R2_trim_pos - primer_3_bases:]
                     R2_qual = R2_qual[R2_trim_pos - primer_3_bases:]
                     
-                # keep only 150 bp on R1 and R2
-                R1_seq = R1_seq[0:150]
-                R1_qual = R1_qual[0:150]
-                R2_seq = R2_seq[0:150]
-                R2_qual = R2_qual[0:150]
-                
+                # keep only 150 bp on R1 and R2 if ITS amplicon
+                if R1_amplicon == "ITS":
+                    R1_seq = R1_seq[0:150]
+                    R1_qual = R1_qual[0:150]
+                    R2_seq = R2_seq[0:150]
+                    R2_qual = R2_qual[0:150]
+                    
                 fwd_primer_counts[R1_primer_name]+=1
                 rev_primer_counts[R2_primer_name]+=1    
                 outsuffix = R1_amplicon
