@@ -218,15 +218,15 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
         utils.log_stuff("Created Primer Datastructure",logger)
 
     # store all primer names , fwd and rev
-    fwd_primer_names = set()
-    rev_primer_names = set()
+    fwd_primer_names = {}
+    rev_primer_names = {}
     # store all amplicon names
     amplicon_names = set()
-    for primer in primer_datastruct["fwd_primer_info"]:
-        fwd_primer_names.add(primer_datastruct["fwd_primer_info"][primer][1])
-        amplicon_names.add(primer_datastruct["fwd_primer_info"][primer][0])
-    for primer in primer_datastruct["rev_primer_info"]:
-        rev_primer_names.add(primer_datastruct["rev_primer_info"][primer][1])
+    for primer,info in primer_datastruct["fwd_primer_info"].items():
+        fwd_primer_names[info[1]] = [info[0],primer]
+        amplicon_names.add(info[0])
+    for primer,info in primer_datastruct["rev_primer_info"].items():
+        rev_primer_names[info[1]] = [info[0],primer]
 
     # dict for file handles
     OUT_R1 = {}
@@ -236,7 +236,6 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
     p = multiprocessing.Pool(num_cores)
     # function to be parallelized
     func = functools.partial(wrapper_trimmer,primer_datastruct)    
-    
 
     for chunks in iterate_fastq(R1_fastq,R2_fastq):
         for R1_info,R2_info in p.map(func,chunks):            
@@ -258,7 +257,7 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
                     R1_qual = R1_qual[R1_trim_pos:]
                 else: # keep said bases belonging to the primer
                     R1_seq = R1_seq[R1_trim_pos - primer_3_bases:]
-                    R1_qual = R1_qual[R1_trim_pos - primer_3_bases:]
+                    R1_qual = R1_qual[R1_trim_pos - primer_3_bases:]                    
 
                 # trim R2
                 if primer_3_bases ==  -1 or primer_3_bases > len(R2_seq): # keep R2 and R2_qual to be as is
@@ -269,13 +268,19 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
                 else: # keep said bases belonging to the primer
                     R2_seq = R2_seq[R2_trim_pos - primer_3_bases:]
                     R2_qual = R2_qual[R2_trim_pos - primer_3_bases:]
-
+                    
+                # keep only 150 bp on R1 and R2
+                R1_seq = R1_seq[0:150]
+                R1_qual = R1_qual[0:150]
+                R2_seq = R2_seq[0:150]
+                R2_qual = R2_qual[0:150]
+                
                 fwd_primer_counts[R1_primer_name]+=1
-                rev_primer_counts[R2_primer_name]+=1                    
+                rev_primer_counts[R2_primer_name]+=1    
                 outsuffix = R1_amplicon
 
             overall_metrics['read fragments, total']+=1
-            if outsuffix not in OUT_R1: # initialize file handle 
+            if outsuffix not in OUT_R1: # initialize file handle
                 OUT_R1[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_R1.fastq"),"w")
                 OUT_R2[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_R2.fastq"),"w")
             OUT_R1[outsuffix].write("{r_id}\n{r_seq}\n{plus}\n{r_qual}\n".format(r_id=R1_id,r_seq=R1_seq,plus=R1_t,r_qual=R1_qual))
@@ -287,25 +292,26 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
     for outsuffix in OUT_R2:
         OUT_R2[outsuffix].close()
     
-    # fwd primer counts
-    with open(os.path.join(output_dir,"{sample_name}.forward_primer_counts.txt".format(sample_name=sample_name)),"w") as OUT:
+    # primer counts
+    with open(os.path.join(output_dir,"{sample_name}.primer_counts.txt".format(sample_name=sample_name)),"w") as OUT:
         OUT.write("#{sample_name}\n".format(sample_name=sample_name))
         for primer_name in fwd_primer_names:
             if primer_name not in fwd_primer_counts:
                 count = 0
             else:
-                count = fwd_primer_counts[primer_name]                
-            OUT.write("{primer}\t{count}\n".format(primer=primer_name,count=count))
+                count = fwd_primer_counts[primer_name]
+            amplicon = fwd_primer_names[primer_name][0]
+            primer_seq = fwd_primer_names[primer_name][1]
+            OUT.write("{amplicon}\t{primer_name}\t{primer_seq}\t{count}\n".format(amplicon=amplicon,primer_name=primer_name,primer_seq=primer_seq,count=count))
             
-    # rev primer counts
-    with open(os.path.join(output_dir,"{sample_name}.reverse_primer_counts.txt".format(sample_name=sample_name)),"w") as OUT:
-        OUT.write("#{sample_name}\n".format(sample_name=sample_name))
         for primer_name in rev_primer_names:
             if primer_name not in rev_primer_counts:
                 count = 0
             else:
-                count = rev_primer_counts[primer_name]                
-            OUT.write("{primer}\t{count}\n".format(primer=primer_name,count=count))
+                count = rev_primer_counts[primer_name]
+            amplicon = rev_primer_names[primer_name][0]
+            primer_seq = rev_primer_names[primer_name][1]
+            OUT.write("{amplicon}\t{primer_name}\t{primer_seq}\t{count}\n".format(amplicon=amplicon,primer_name=primer_name,primer_seq=primer_seq,count=count))
             
     # metrics
     with open(os.path.join(output_dir,"{sample_name}.metrics.txt".format(sample_name=sample_name)),"w") as OUT:

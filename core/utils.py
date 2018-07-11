@@ -68,26 +68,35 @@ def accumulate_counts(count_files,outfile):
     primer_counts = defaultdict(lambda:defaultdict(int))
     samples = []
     primer_names = []
+    amplicons = []
+    primer_sequences = []
+    first = True
     for sample_name in count_files:
         with open(count_files[sample_name],"r") as IN:
             samples.append(sample_name)
             for line in IN:
-                if line.startswith("#"):# header
+                if line.startswith("#"): # header
                     sample_name_in_file = line.strip("\n").strip("#")
                     assert sample_name == sample_name_in_file,"Mixup in sample names !" # sanity check
                     continue
-                primer_name, count = line.strip("\n").split("\t")
+                amplicon,primer_name,primer_sequence,count = line.strip("\n").split("\t")
                 primer_counts[primer_name][sample_name] = count
-                primer_names.append(primer_name)
+                if first:
+                    primer_names.append(primer_name)
+                    amplicons.append(amplicon)
+                    primer_sequences.append(primer_sequence)
+        first = False
 
-    header = "PrimerName\t{samples}\n".format(samples="\t".join(samples))
+    header = "Region\tPrimerName\tPrimerSequence\t{samples}\n".format(samples="\t".join(samples))
     with open(outfile,"w") as OUT:
         OUT.write(header)
-        for primer_name in primer_names:
+        for i,primer_name in enumerate(primer_names):
+            amplicon = amplicons[i]
+            primer_seq = primer_sequences[i]
             out = []
-            for sample_name in samples:
-                out.append(primer_name)
-                out.append(primer_counts[primer_name][sample_name])
+            for sample in samples:
+                out.extend([amplicon,primer_name,primer_seq])                
+                out.append(primer_counts[primer_name][sample])
             out.append("\n")
             OUT.write("\t".join(out))
         
@@ -97,17 +106,13 @@ def aggregate_metrics(output_dir,samples_cfg):
     :param str samples_cfg : config file for samples
     '''
     read_metric_files = {}
-    fwd_primer_metric_files = {}
-    rev_primer_metric_files = {}
+    primer_metric_files = {}    
     for sample_name,R1_fastq,R2_fastq in parse_config_file(samples_cfg):
         sample_dir = os.path.join(output_dir,sample_name)
         read_metric_files[sample_name] = os.path.join(sample_dir,"{sample_name}.metrics.txt".format(sample_name=sample_name))
-        fwd_primer_metric_files[sample_name] = os.path.join(sample_dir,"{sample_name}.forward_primer_counts.txt".format(sample_name=sample_name))
-        rev_primer_metric_files[sample_name] = os.path.join(sample_dir,"{sample_name}.reverse_primer_counts.txt".format(sample_name=sample_name))
-
-    accumulate_metrics(read_metric_files,os.path.join(output_dir,"QIASeq-16S.read.summary.txt"))
-    accumulate_counts(fwd_primer_metric_files,os.path.join(output_dir,"QIASeq-16S.fwd.primer.summary.txt"))
-    accumulate_counts(rev_primer_metric_files,os.path.join(output_dir,"QIASeq-16S.rev.primer.summary.txt"))  
+        primer_metric_files[sample_name] = os.path.join(sample_dir,"{sample_name}.primer_counts.txt".format(sample_name=sample_name))
+    accumulate_metrics(read_metric_files,os.path.join(output_dir,"QIAseq16S.ITS.summary.txt"))
+    accumulate_counts(primer_metric_files,os.path.join(output_dir,"QIAseq16S.ITS.primer.counts.txt"))
     
 def open_by_magic(filename):
     '''
