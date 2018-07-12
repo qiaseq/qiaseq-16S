@@ -244,7 +244,7 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
 
             if R1_trim_pos == -1 or R2_trim_pos == -1: # No primer found
                 overall_metrics['read fragments dropped, primer not found']+=1
-                out_file = "unknown"
+                outsuffix = "unknown"
             elif R1_amplicon != R2_amplicon: # Found primer but not on same amplicon
                 overall_metrics['read fragments dropped, R1 and R2 not on same amplicon']+=1
                 outsuffix = "unknown"
