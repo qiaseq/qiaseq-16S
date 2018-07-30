@@ -282,8 +282,8 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
 
             overall_metrics['read fragments, total']+=1
             if outsuffix not in OUT_R1: # initialize file handle
-                OUT_R1[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_R1.fastq"),"w")
-                OUT_R2[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_R2.fastq"),"w")
+                OUT_R1[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_L001_R1_001.fastq"),"w")
+                OUT_R2[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_L001_R2_001.fastq"),"w")
             OUT_R1[outsuffix].write("{r_id}\n{r_seq}\n{plus}\n{r_qual}\n".format(r_id=R1_id,r_seq=R1_seq,plus=R1_t,r_qual=R1_qual))
             OUT_R2[outsuffix].write("{r_id}\n{r_seq}\n{plus}\n{r_qual}\n".format(r_id=R2_id,r_seq=R2_seq,plus=R2_t,r_qual=R2_qual))                
     p.close()
