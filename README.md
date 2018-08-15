@@ -27,7 +27,7 @@ Please modify the samples.cfg file to match your own fastq files.
 
 You can tweak the num_cores parameter in the pipeline.cfg file and the --workers flag to tweak parallelization.
 
-To run this code in a non interactive way , create an appropriate samples.cfg file , assuming samples.cfg and your input fastq files are in the folder /home/boss/my_fav_folder/ :
+To run this code in a non interactive way , create an appropriate samples.cfg file , assuming samples.cfg and your input fastq files are in the folder /home/foo/my_fav_folder/ :
 ```
 sudo docker run -i -v /home/foo/my_fav_folder/:/home/foo/my_fav_folder/ qiaseq/qiaseq-16S \
 /bin/sh -c "luigid --background & cd /home/qiagen/; git clone https://github.com/qiaseq/qiaseq-16S.git; \
