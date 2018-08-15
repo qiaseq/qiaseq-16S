@@ -101,7 +101,7 @@ class AggregateResults(luigi.Task):
         ''' work to be done
         aggregate metrics , use pigz to compress fastqs and zip to gather files into an archive
         '''
-        core.utils.compress_fastqs(self.output_dir,self.samples_cfg)
+        core.utils.compress_fastqs(self.output_dir,self.samples_cfg,config().num_cores)
         core.utils.aggregate_metrics(self.output_dir,self.samples_cfg)
         with open(self.verification_file,"w") as OUT:
             OUT.write("task_verified\n")

@@ -26,17 +26,18 @@ def parse_config_file(samples_cfg):
         R2_fastq = parser.get(section,'R2_fastq')
         yield (sample_name,R1_fastq,R2_fastq)
 
-def compress_fastqs(output_dir,samples_cfg):
+def compress_fastqs(output_dir,samples_cfg,num_cores):
     ''' Compress fastq files using pigz
     :param str output_dir  : base output directory
     :param str samples_cfg : config file for samples
+    :param str num_cores   : number of cpus to use for pigz 
     '''
-    pigz_cmd = "pigz {fname}"
+    pigz_cmd = "pigz -p {ncores} {fname}"
     for sample_name,R1_fastq,R2_fastq in parse_config_file(samples_cfg):
         sample_dir = os.path.join(output_dir,sample_name)
         fastqs_to_gzip = glob.glob(os.path.join(sample_dir,"*.fastq"))        
         for f in fastqs_to_gzip:
-            subprocess.check_call(pigz_cmd.format(fname=f),shell=True)
+            subprocess.check_call(pigz_cmd.format(ncores=num_cores,fname=f),shell=True)
 
 
 def accumulate_metrics(metric_files,outfile):
