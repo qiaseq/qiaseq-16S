@@ -115,7 +115,7 @@ def trim_primer(primer_datastruct,read):
     to_log = {}    
     for p in candidates:        
         p_len = primers[p][-1]
-        if read[0:p_len] == p and num_candidates == 0: # exact match and no other primers to check
+        if read[0:p_len] == p and num_candidates == 1: # exact match and no other primers to check
             amplicon = primers[p][0]
             primer_name = primers[p][1]
             return (p_len+1,p,'0',amplicon,primer_name)
