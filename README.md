@@ -14,7 +14,7 @@ luigid --background &
 export LUIGI_CONFIG_PATH=/home/qiagen/qiaseq-16S/pipeline.cfg
 # run code on the example fastq
 cd qiaseq-16S/
-export PYTHONPATH-$PYTHONPATH:""
+export PYTHONPATH=$PYTHONPATH:""
 luigi --module workflow AggregateResults --samples-cfg samples.cfg --output-dir /home/qiagen/data/output/ --workers 1 --worker-wait-interval 30
 
 # Output files produced are : 
