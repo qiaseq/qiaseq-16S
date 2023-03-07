@@ -1,4 +1,3 @@
-# standard library
 import itertools
 import logging
 import functools
@@ -6,11 +5,11 @@ import sys
 import os
 import collections
 import multiprocessing
-# 3rd party
+import pickle
 import edlib
-# our modules
+
+# Internal
 import utils
-#import RemoteException
 
 # Initialize some global constants
 _KMER_SIZE_ = 8 # k-mer size
@@ -25,9 +24,6 @@ logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler(sys.stdout)
 logger.addHandler(ch)
 
-def parse_primer_file(primer_file):
-    ''' Parse primer file
-    '''
 
 def return_kmers(seq,k=_KMER_SIZE_):
     ''' Return all k-mers for a sequence
@@ -36,6 +32,7 @@ def return_kmers(seq,k=_KMER_SIZE_):
     '''
     kmers = set(''.join(itertools.islice(seq,i,i+k)) for i in range(len(seq)+1-k))
     return kmers
+
 
 def create_primer_search_datastruct(primer_file,cache=False,cache_file=None):
     ''' Create datastructures used for searching primers
@@ -58,8 +55,8 @@ def create_primer_search_datastruct(primer_file,cache=False,cache_file=None):
             contents = line.strip('\n\r').split('\t')
             if line.startswith("Region"):
                 continue
-            amplicon,forward_primer_name,forward_primer_id,forward_primer_seq,reverse_primer_name,reverse_primer_id,reverse_primer_seq = contents            
-            # forward primer            
+            amplicon,forward_primer_name,forward_primer_id,forward_primer_seq,reverse_primer_name,reverse_primer_id,reverse_primer_seq = contents
+            # forward primer
             primer_len = len(forward_primer_seq)
             if forward_primer_seq not in forward_primers:
                 if forward_primer_seq != "":
@@ -88,9 +85,10 @@ def create_primer_search_datastruct(primer_file,cache=False,cache_file=None):
     else:
         return datastruct
 
+
 def trim_primer(primer_datastruct,read):
     ''' Trim appropriate Primer from the read sequence
-    :param tuple primer_datastruct  : Object returned by the function 
+    :param tuple primer_datastruct  : Object returned by the function
                                       create_primer_search_datastruct
     :param str   read               : The read sequence
 
@@ -112,8 +110,8 @@ def trim_primer(primer_datastruct,read):
     if len(candidates) == 0: # no hits in the index, exhaustive search over all primers
         candidates = primers
     num_candidates = len(candidates)
-    to_log = {}    
-    for p in candidates:        
+    to_log = {}
+    for p in candidates:
         p_len = primers[p][-1]
         if read[0:p_len] == p and num_candidates == 1: # exact match and no other primers to check
             amplicon = primers[p][0]
@@ -131,19 +129,20 @@ def trim_primer(primer_datastruct,read):
                     best_alignment = alignment
                     best_primer = p
                     best_score = score
-                    best_editdist = editdist                
+                    best_editdist = editdist
 
     assert best_score != None, "Bug in logic ! Primer could not be scored correctly !"
 
     if best_score <= _MISMATCH_THRESHOLD_:
         if best_primer in to_log:
             utils.log_stuff(to_log[best_primer],logger)
-            
+
         amplicon = primers[best_primer][0]
         primer_name = primers[best_primer][1]
         return (best_alignment['locations'][-1][1]+1,best_primer,str(best_editdist),amplicon,primer_name)
     else:
         return (-1,"-1","-1","-1","-1")
+
 
 def iterate_fastq(R1_fastq,R2_fastq):
     ''' Iterate over R1 and R2 fastq file in chunks
@@ -165,13 +164,12 @@ def iterate_fastq(R1_fastq,R2_fastq):
                     to_yield.append((R1_info,R2_info))
                     count = 0
                     R1_info = []
-                    R2_info = []                    
+                    R2_info = []
                 count+=1
-            yield to_yield            
+            yield to_yield
+
 
 def wrapper_trimmer(primer_datastruct,read_info):
-    '''
-    '''
     R1_info, R2_info = read_info
     R1_id,R1_seq,R1_t,R1_qual = R1_info
     R2_id,R2_seq,R2_t,R2_qual = R2_info
@@ -180,8 +178,8 @@ def wrapper_trimmer(primer_datastruct,read_info):
 
     return ((R1_id,R1_seq,R1_t,R1_qual,R1_trim_pos,R1_primer,R1_primer_err,R1_amplicon,R1_primer_name),
             (R2_id,R2_seq,R2_t,R2_qual,R2_trim_pos,R2_primer,R2_primer_err,R2_amplicon,R2_primer_name))
-        
-    
+
+
 def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num_cores,load_cache=False,cache_file=None):
     ''' Main function
     :param str sample_name          : Sample Name , will be used as in primer count file
@@ -197,15 +195,11 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     num_cores = int(num_cores)
-    # counters
-    num_R1=0
-    num_trimmed_R1=0
-    num_trimmed_R2=0
-    num_not_trimmed_R1=0
-    num_not_trimmed_R2=0
+
+    # Counters
     fwd_primer_counts = collections.defaultdict(int)
     rev_primer_counts = collections.defaultdict(int)
-    overall_metrics = collections.defaultdict(int)    
+    overall_metrics = collections.defaultdict(int)
 
     # primer search datastruct
     if load_cache: # pickle and dill do not seem to be working. will debug this later. do not use cache for now.
@@ -231,16 +225,16 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
     # dict for file handles
     OUT_R1 = {}
     OUT_R2 = {}
-    
+
     # spawn threads
     p = multiprocessing.Pool(num_cores)
     # function to be parallelized
-    func = functools.partial(wrapper_trimmer,primer_datastruct)    
+    func = functools.partial(wrapper_trimmer,primer_datastruct)
 
     for chunks in iterate_fastq(R1_fastq,R2_fastq):
-        for R1_info,R2_info in p.map(func,chunks):            
+        for R1_info,R2_info in p.map(func,chunks):
             R1_id,R1_seq,R1_t,R1_qual,R1_trim_pos,R1_primer,R1_primer_err,R1_amplicon,R1_primer_name = R1_info
-            R2_id,R2_seq,R2_t,R2_qual,R2_trim_pos,R2_primer,R2_primer_err,R2_amplicon,R2_primer_name = R2_info            
+            R2_id,R2_seq,R2_t,R2_qual,R2_trim_pos,R2_primer,R2_primer_err,R2_amplicon,R2_primer_name = R2_info
 
             if R1_trim_pos == -1 or R2_trim_pos == -1: # No primer found
                 overall_metrics['read fragments dropped, primer not found']+=1
@@ -257,7 +251,7 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
                     R1_qual = R1_qual[R1_trim_pos:]
                 else: # keep said bases belonging to the primer
                     R1_seq = R1_seq[R1_trim_pos - primer_3_bases:]
-                    R1_qual = R1_qual[R1_trim_pos - primer_3_bases:]                    
+                    R1_qual = R1_qual[R1_trim_pos - primer_3_bases:]
 
                 # trim R2
                 if primer_3_bases ==  -1 or primer_3_bases > len(R2_seq): # keep R2 and R2_qual to be as is
@@ -268,16 +262,16 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
                 else: # keep said bases belonging to the primer
                     R2_seq = R2_seq[R2_trim_pos - primer_3_bases:]
                     R2_qual = R2_qual[R2_trim_pos - primer_3_bases:]
-                    
+
                 # keep only 150 bp on R1 and R2 if ITS amplicon
                 if R1_amplicon == "ITS":
                     R1_seq = R1_seq[0:150]
                     R1_qual = R1_qual[0:150]
                     R2_seq = R2_seq[0:150]
                     R2_qual = R2_qual[0:150]
-                    
+
                 fwd_primer_counts[R1_primer_name]+=1
-                rev_primer_counts[R2_primer_name]+=1    
+                rev_primer_counts[R2_primer_name]+=1
                 outsuffix = R1_amplicon
 
             overall_metrics['read fragments, total']+=1
@@ -285,14 +279,14 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
                 OUT_R1[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_L001_R1_001.fastq"),"w")
                 OUT_R2[outsuffix] = open(os.path.join(output_dir,sample_name+"_"+outsuffix+"_L001_R2_001.fastq"),"w")
             OUT_R1[outsuffix].write("{r_id}\n{r_seq}\n{plus}\n{r_qual}\n".format(r_id=R1_id,r_seq=R1_seq,plus=R1_t,r_qual=R1_qual))
-            OUT_R2[outsuffix].write("{r_id}\n{r_seq}\n{plus}\n{r_qual}\n".format(r_id=R2_id,r_seq=R2_seq,plus=R2_t,r_qual=R2_qual))                
+            OUT_R2[outsuffix].write("{r_id}\n{r_seq}\n{plus}\n{r_qual}\n".format(r_id=R2_id,r_seq=R2_seq,plus=R2_t,r_qual=R2_qual))
     p.close()
     p.join()
     for outsuffix in OUT_R1:
         OUT_R1[outsuffix].close()
     for outsuffix in OUT_R2:
         OUT_R2[outsuffix].close()
-    
+
     # primer counts
     with open(os.path.join(output_dir,"{sample_name}.primer_counts.txt".format(sample_name=sample_name)),"w") as OUT:
         OUT.write("#{sample_name}\n".format(sample_name=sample_name))
@@ -304,7 +298,7 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
             amplicon = fwd_primer_names[primer_name][0]
             primer_seq = fwd_primer_names[primer_name][1]
             OUT.write("{amplicon}\t{primer_name}\t{primer_seq}\t{count}\n".format(amplicon=amplicon,primer_name=primer_name,primer_seq=primer_seq,count=count))
-            
+
         for primer_name in rev_primer_names:
             if primer_name not in rev_primer_counts:
                 count = 0
@@ -313,11 +307,12 @@ def main(sample_name,output_dir,R1_fastq,R2_fastq,primer_file,primer_3_bases,num
             amplicon = rev_primer_names[primer_name][0]
             primer_seq = rev_primer_names[primer_name][1]
             OUT.write("{amplicon}\t{primer_name}\t{primer_seq}\t{count}\n".format(amplicon=amplicon,primer_name=primer_name,primer_seq=primer_seq,count=count))
-            
+
     # metrics
     with open(os.path.join(output_dir,"{sample_name}.metrics.txt".format(sample_name=sample_name)),"w") as OUT:
         for met in ["read fragments, total","read fragments dropped, primer not found","read fragments dropped, R1 and R2 not on same amplicon"]:
             OUT.write("{metric}\t{value}\n".format(metric=met,value=overall_metrics[met]))
+
 
 if __name__ == '__main__':
     assert len(sys.argv) == 8, "Incorrect command line params specified !"

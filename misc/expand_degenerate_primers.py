@@ -28,7 +28,7 @@ def expand_primer(primer):
         if loc != -1:
             degen_bases.append(_degenerate_base_codes_[base])
             degen_bases_loc.append(loc)
-    
+
     if len(degen_bases) == 0:
         yield primer
     else:
@@ -44,6 +44,7 @@ def expand_primer(primer):
                 temp[base_to_modify] = base
 
             yield "".join(temp)
+
 
 def iterate_primer_file(primer_file):
     ''' Iterate over the primer file , expand degenerate bases and write to a new file
@@ -77,5 +78,5 @@ def iterate_primer_file(primer_file):
                     OUT.write("\t".join(out)+"\n")
                     j+=1
                 i+=1
-                    
+
 iterate_primer_file(sys.argv[1])

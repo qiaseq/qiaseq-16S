@@ -8,11 +8,13 @@ import io
 import os
 import subprocess
 
+
 def log_stuff(stuff,logger):
     ''' Log given string with time
     :param str stuff: string to log
     '''
     logger.info("{time}:{stuff}".format(time=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),stuff=stuff))
+
 
 def parse_config_file(samples_cfg):
     ''' Parse a config file. This is specific
@@ -26,16 +28,17 @@ def parse_config_file(samples_cfg):
         R2_fastq = parser.get(section,'R2_fastq')
         yield (sample_name,R1_fastq,R2_fastq)
 
+
 def compress_fastqs(output_dir,samples_cfg,num_cores):
     ''' Compress fastq files using pigz
     :param str output_dir  : base output directory
     :param str samples_cfg : config file for samples
-    :param str num_cores   : number of cpus to use for pigz 
+    :param str num_cores   : number of cpus to use for pigz
     '''
     pigz_cmd = "pigz -p {ncores} {fname}"
     for sample_name,R1_fastq,R2_fastq in parse_config_file(samples_cfg):
         sample_dir = os.path.join(output_dir,sample_name)
-        fastqs_to_gzip = glob.glob(os.path.join(sample_dir,"*.fastq"))        
+        fastqs_to_gzip = glob.glob(os.path.join(sample_dir,"*.fastq"))
         for f in fastqs_to_gzip:
             subprocess.check_call(pigz_cmd.format(ncores=num_cores,fname=f),shell=True)
 
@@ -49,7 +52,7 @@ def accumulate_metrics(metric_files,outfile):
     samples = []
     first = True
     metric_accumulate = defaultdict(lambda:defaultdict(int))
-    
+
     for sample_name in metric_files:
         with open(metric_files[sample_name],"r") as IN:
             samples.append(sample_name)
@@ -69,6 +72,7 @@ def accumulate_metrics(metric_files,outfile):
                 out.append(str(metric_accumulate[metric][sample_name]))
             out.append("\n")
             OUT.write("\t".join(out))
+
 
 def accumulate_counts(count_files,outfile):
     ''' Accumualate primer level counts
@@ -105,25 +109,27 @@ def accumulate_counts(count_files,outfile):
             primer_seq = primer_sequences[i]
             out = []
             out.extend([amplicon,primer_name,primer_seq])
-            for sample_name in samples:                
+            for sample_name in samples:
                 out.append(primer_counts[primer_name][sample_name])
             out.append("\n")
             OUT.write("\t".join(out))
-        
+
+
 def aggregate_metrics(output_dir,samples_cfg):
     ''' Aggregate metric files
     :param str output_dir  : base output directory
     :param str samples_cfg : config file for samples
     '''
     read_metric_files = {}
-    primer_metric_files = {}    
+    primer_metric_files = {}
     for sample_name,R1_fastq,R2_fastq in parse_config_file(samples_cfg):
         sample_dir = os.path.join(output_dir,sample_name)
         read_metric_files[sample_name] = os.path.join(sample_dir,"{sample_name}.metrics.txt".format(sample_name=sample_name))
         primer_metric_files[sample_name] = os.path.join(sample_dir,"{sample_name}.primer_counts.txt".format(sample_name=sample_name))
     accumulate_metrics(read_metric_files,os.path.join(output_dir,"QIAseq16S.ITS.summary.txt"))
     accumulate_counts(primer_metric_files,os.path.join(output_dir,"QIAseq16S.ITS.primer.counts.txt"))
-    
+
+
 def open_by_magic(filename):
     '''
     Adapted from : http://stackoverflow.com/questions/18367511/how-do-i-automatically-handle-decompression-when-reading-a-file-in-python
@@ -145,9 +151,9 @@ def open_by_magic(filename):
                 return io.BufferedReader(fn(filename))
             return open(filename,'r') ## Otherwise just a regular file
 
-        
+
 def grouper(iterable,n=10000000):
-    ''' 
+    '''
     Groups and returns n elements of an iterable at a time
 
     :param iterator iterable : The iterator to chop up
@@ -159,4 +165,4 @@ def grouper(iterable,n=10000000):
         chunk = tuple(itertools.islice(it,n))
         if not chunk:
             return
-        yield chunk    
+        yield chunk
